@@ -45,10 +45,32 @@ docker-compose stop
 docker-compose down
 ```
 
+= Other configurations
 
+To use an alternative working dir `path` and a custom file name `file.yml`:
+
+```
+docker-compose up -p path -f file.yml -d 
+```
+
+Add these same options for all other operations.
+For more options see: `docker-compose --help`
+
+= Issues
+
+Make sure to have `docker` installed and running.
+
+On Debian/Ubuntu platform you can check:
+```
+sudo systemctl status docker.service
+```
+If the service is not running, simply restart it.
+Otherwise you will need to install `docker`.
 
 = further readings
 
-ref: https://github.com/psharkey/docker/tree/master/novnc
+* [docker](https://docs.docker.com/get-started/)
+* [nonc on docker](https://github.com/psharkey/docker/tree/master/novnc)
+* [salome on docker](https://github.com/feelpp/hifimagnet/blob/develop/docker/salome/Readme.md)
 
-NB: not working with alpine since missing packages
+NB: not working with Alpine since missing packages
