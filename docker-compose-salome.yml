@@ -1,0 +1,25 @@
+version: '2'
+services:
+  ide:
+    image: trophime/salome-8.4.0:nvidia
+    volumes:
+      - /opt/DISTENE/DLim:/opt/DISTENE/DLim
+      - /home/LNCMI-G/trophime/feel:/home/feelpp/feel/
+    environment:
+      - DISPLAY=novnc:0.0
+    depends_on:
+      - novnc
+    networks:
+      - x11
+  novnc:  
+    image: novnc:virtualgl
+    environment:
+      # Adjust to your screen size
+      - DISPLAY_WIDTH=1600
+      - DISPLAY_HEIGHT=968
+    ports:
+      - "8080:8080"
+    networks:
+      - x11
+networks:
+  x11:
