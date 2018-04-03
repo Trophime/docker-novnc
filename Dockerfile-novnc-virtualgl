@@ -1,0 +1,81 @@
+ARG PLATFORM=debian
+ARG OS=buster
+ARG GRAPHICS=nvidia
+
+FROM ${PLATFORM}:${OS}
+
+# Setup demo environment variables
+ENV HOME=/root \
+	DEBIAN_FRONTEND=noninteractive \
+	LANG=en_US.UTF-8 \
+	LANGUAGE=en_US.UTF-8 \
+	LC_ALL=C.UTF-8 \
+	DISPLAY=:0.0 \
+	DISPLAY_WIDTH=1600 \
+	DISPLAY_HEIGHT=968
+
+# Install git, supervisor, VNC, & X11 packages
+RUN apt update && \
+    apt upgrade -y && \
+    apt install -y \
+        procps net-tools \
+	wget curl \
+	emacs-nox vim nano \
+	lsb-release \
+	bash \
+	fluxbox \
+	git \
+	socat \
+	supervisor \
+	x11vnc \
+	xterm \
+	xvfb \
+    mesa-utils mesa-utils-extra && \
+    apt clean -y
+    
+# Clone noVNC from github
+RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
+	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
+	&& rm -rf /root/noVNC/.git \
+	&& rm -rf /root/noVNC/utils/websockify/.git \
+	&& apt purge -y git
+
+# add Graphics driver for better perf
+RUN if [ x$GRAPHICS != xnone ]; then \
+      if [ x$PLATFORM = xubuntu ]; then \
+         apt-get install -y  module-init-tools; \
+      fi ; \             
+      if [ x$PLATFORM = xdebian ]; then \
+         apt-get install -y  kmod; \
+      fi ; \             
+    fi && \ 
+    if [ x$GRAPHICS = xnvidia ]; then \
+       wget http://us.download.nvidia.com/XFree86/Linux-x86_64/384.98/NVIDIA-Linux-x86_64-384.98.run -O /tmp/NVIDIA-DRIVER.run; \
+       sh /tmp/NVIDIA-DRIVER.run -a -N --ui=none --no-kernel-module; \
+       rm /tmp/NVIDIA-DRIVER.run; \
+    fi && \
+    if [ x$GRAPHICS = xintelhd ]; then \
+       echo "should install intelhd driver"; \
+    fi && \
+    if [ x$GRAPHICS = xati ]; then \
+       echo "should install ati driver"; \
+    fi && \
+    if [ x$GRAPHICS = xradeon ]; then \
+       echo "should install xradeon driver"; \
+    fi && \
+    apt-get clean
+    
+
+# Install vglrun?
+RUN wget https://sourceforge.net/projects/virtualgl/files/2.5.2/virtualgl_2.5.2_amd64.deb/download -O /tmp/virtualgl_2.5.2_amd64.deb && \
+    dpkg -i /tmp/virtualgl_2.5.2_amd64.deb && \
+    rm /tmp/virtualgl_2.5.2_amd64.deb
+    
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Modify the launch script 'ps -p'
+RUN sed -i -- "s/ps -p/ps -o pid | grep/g" /root/noVNC/utils/launch.sh
+
+EXPOSE 8080
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
