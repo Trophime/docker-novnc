@@ -1,7 +1,12 @@
-ARG PLATFORM=debian
+ARG PLATFORM=debian  
 ARG OS=buster
 
 FROM ${PLATFORM}:${OS}
+
+ARG PLATFORM=debian  
+ARG OS=buster
+
+ARG GPGKEY=535D3508
 
 # Setup demo environment variables
 ENV HOME=/root \
@@ -13,29 +18,85 @@ ENV HOME=/root \
 	DISPLAY_WIDTH=1600 \
 	DISPLAY_HEIGHT=968
 
+ARG DEBIAN_FRONTEND=noninteractive
+ARG SALOME_PACKAGE=SALOME-8.4.0-LNCMI-MPI-DBtesting.tgz
+ARG SALOME_INSTALLDIR=SALOME-8.4.0-LNCMI-MPI-DBtesting
+
+RUN if [ "$PLATFORM" = "debian" ]; then \
+       if [ "$OS" != "buster" ]; then \
+          echo "deb http://ftp.debian.org/debian $DIST-updates main" >> /etc/apt/sources.list; \
+          echo "deb http://ftp.debian.org/debian $DIST-backports main" >> /etc/apt/sources.list; \
+       fi ; \
+       perl -p -i'.bak' -e "s| main| main contrib non-free|g" /etc/apt/sources.list;  \
+    fi && \   
+    if [ $PLATFORM = "ubuntu" ]; then \
+       perl -p -i'.bak' -e "s| universe| restricted universe multiverse|g" /etc/apt/sources.list; \
+    fi
+ 
+# Add LNCMI Ubuntu repository and install MagnetTools prerequisites
+RUN apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get -y --force-yes install gnupg curl && \
+    gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv $GPGKEY && \
+    gpg --export --armor $GPGKEY | apt-key add - && \
+    mkdir -p /etc/apt/sources.list.d/ && \
+    echo "deb http://euler/~trophime/debian/ $OS main" > /etc/apt/sources.list.d/lncmi.list && \
+    apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get install -y \
+       python-minimal libxss1 \
+       libxmu6 libglu1-mesa libxft2 \
+       libcos4-1 \
+       omniidl omniidl-python omniorb-idl omniorb-nameserver python-omniorb python-omniorb-omg \
+       paraview-python \
+       netgen libnglib-5.3.1 \
+       gmsh-tetgen libpastix-dev \
+       libqwt-qt5-6 \
+       libopencascade-visualization-dev libopencascade-ocaf-dev \
+       libqt5xml5 libqt5test5 libqt5sensors5 libqt5positioning5 libqt5multimediawidgets5 libqt5webengine5 libqt5webenginewidgets5 \
+       libboost-filesystem1.62.0 libboost-regex1.62.0 libboost-signals1.62.0 libboost-thread1.62.0 libboost-date-time1.62.0 libboost-chrono1.62.0 libboost-atomic1.62.0 \
+       python-sip python-pyqt5 \
+       graphviz \
+       valgrind openssh-client \
+       python-psutil \
+       python-memory-profiler && \
+    apt-get -y clean  
+    
+# alternative use Salome Universal binaries
+COPY ${SALOME_PACKAGE} /tmp/${SALOME_PACKAGE}
+RUN mkdir -p /opt &&  \
+    cd /opt && \
+    tar zxf /tmp/${SALOME_PACKAGE} && \
+    rm -f /tmp/${SALOME_PACKAGE}
+
+ENV DISTENE_LICENSE_FILE /opt/DISTENE/DLim/dlim8.key
+ENV PATH /opt/${SALOME_INSTALLDIR}/:$PATH
+#
+# LD_LIBRARY_PATH shall not be changed - A quick and dirty hack to fix salome
+ENV LD_LIBRARY_PATH /usr/lib/paraview:$LD_LIBRARY_PATH
+
+
 # Install git, supervisor, VNC, & X11 packages
-RUN apt update && \
-    apt upgrade -y && \
-    apt install -y \
+RUN apt install -y \
         procps net-tools \
-	wget curl \
-	emacs-nox vim nano \
-	lsb-release \
-	bash \
-	fluxbox \
-	git \
-	socat \
-	supervisor \
-	x11vnc \
-	xterm \
-	xvfb \
-    mesa-utils mesa-utils-extra && \
+	      wget curl \
+	      emacs-nox vim nano \
+	      lsb-release \
+	      bash  bash-completion \
+	      fluxbox \
+	      git \
+	      socat \
+	      supervisor \
+	      x11vnc \
+	      xterm \
+	      xvfb \
+        mesa-utils mesa-utils-extra && \
     apt clean -y
     
 # Clone noVNC from github
 RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
-	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
 	&& rm -rf /root/noVNC/.git \
+	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
 	&& rm -rf /root/noVNC/utils/websockify/.git \
 	&& apt purge -y git
 
