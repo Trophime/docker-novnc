@@ -18,7 +18,7 @@ RUN perl -p -i'.bak' -e "s| main| main contrib non-free|g" /etc/apt/sources.list
     apt update && \
     apt upgrade -y && \
     apt install -y \
-        procps net-tools \
+        procps net-tool \
 	emacs-nox vim nano \
 	lsb-release \
 	bash \
@@ -46,11 +46,17 @@ RUN apt install -y wget && \
     dpkg -i /tmp/virtualgl_2.5.2_amd64.deb && \
     rm /tmp/virtualgl_2.5.2_amd64.deb && \
     apt purge -y wget
-    
+
+# Set X server : requires users are in vglusers group
+RUN echo "1\nY\nY\nY\nn\n" > answer.txt && \
+    /opt/VirtualGL/bin/vglserver_config < answer.txt && \
+    rm answer.txt
+
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Modify the launch script 'ps -p'
-RUN sed -i -- "s/ps -p/ps -o pid | grep/g" /root/noVNC/utils/launch.sh
+RUN cat /root/noVNC/utils/launch.sh && \
+    sed -i -- "s/ps -p/ps -o pid | grep/g" /root/noVNC/utils/launch.sh
 
 EXPOSE 8080
 
