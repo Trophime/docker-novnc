@@ -33,9 +33,7 @@ RUN apt update && \
     mesa-utils mesa-utils-extra && \
     apt clean -y
     
-# # Clone noVNC from github
-# RUN apt update && \
-#     apt install -y  novnc
+# Clone noVNC from github
 RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
 	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
 	&& rm -rf /root/noVNC/.git \
@@ -43,20 +41,21 @@ RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
 	&& apt purge -y git
 
 # add Graphics driver for better perf
-RUN if [ "x$GRAPHICS != xnone" ]; then \
-      if [ "x$PLATFORM" = "xubuntu" ]; then \
-         apt install -y  module-init-tools; \
+# wget http://us.download.nvidia.com/XFree86/Linux-x86_64/384.98/NVIDIA-Linux-x86_64-384.98.run -O /tmp/NVIDIA-DRIVER.run; \
+# sh /tmp/NVIDIA-DRIVER.run -a -N --ui=none --no-kernel-module; \
+# rm /tmp/NVIDIA-DRIVER.run; \
+RUN if [ x$GRAPHICS != xnone ]; then \
+      if [ x$PLATFORM = xubuntu ]; then \
+         apt-get install -y  module-init-tools; \
       fi ; \             
-      if [ "x$PLATFORM" = "xdebian" ]; then \
-         apt install -y  kmod; \
+      if [ x$PLATFORM = xdebian ]; then \
+         apt-get install -y  kmod; \
       fi ; \             
     fi && \ 
-    if [ "x$GRAPHICS" = "xnvidia" ]; then \
-       apt install nvidia-driver-libs
+    if [ x$GRAPHICS = xnvidia ]; then \
+       apt install nvidia-driver-libs; \
        # wget http://us.download.nvidia.com/XFree86/Linux-x86_64/384.98/NVIDIA-Linux-x86_64-384.98.run -O /tmp/NVIDIA-DRIVER.run; \
-       apt install nvidia-driver-libs
        # sh /tmp/NVIDIA-DRIVER.run -a -N --ui=none --no-kernel-module; \
-       apt install nvidia-driver-libs
        # rm /tmp/NVIDIA-DRIVER.run; \
     fi && \
     if [ x$GRAPHICS = xintelhd ]; then \
@@ -67,8 +66,11 @@ RUN if [ "x$GRAPHICS != xnone" ]; then \
     fi && \
     if [ x$GRAPHICS = xradeon ]; then \
        echo "should install xradeon driver"; \
-    fi
+    fi && \
+    apt-get clean
+    
 
+# Install vglrun?
 RUN wget https://sourceforge.net/projects/virtualgl/files/2.5.2/virtualgl_2.5.2_amd64.deb/download -O /tmp/virtualgl_2.5.2_amd64.deb && \
     dpkg -i /tmp/virtualgl_2.5.2_amd64.deb && \
     rm /tmp/virtualgl_2.5.2_amd64.deb
