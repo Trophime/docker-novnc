@@ -2,6 +2,8 @@ version: '2'
 services:
   ide:
     image: trophime/salome-8.4.0:novnc
+    volumes:
+      - /opt/DISTENE/DLim:/opt/DISTENE/DLim
     environment:
       - DISPLAY=novnc:0.0
     depends_on:
