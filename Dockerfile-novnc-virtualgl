@@ -45,15 +45,15 @@ RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
 # sh /tmp/NVIDIA-DRIVER.run -a -N --ui=none --no-kernel-module; \
 # rm /tmp/NVIDIA-DRIVER.run; \
 # add Graphics driver for better perf
-RUN if [ "x$GRAPHICS != xnone" ]; then \
-      if [ "x$PLATFORM" = "xubuntu" ]; then \
-         apt install -y  module-init-tools; \
+RUN if [ x$GRAPHICS != xnone ]; then \
+      if [ x$PLATFORM = xubuntu ]; then \
+         apt-get install -y  module-init-tools; \
       fi ; \             
-      if [ "x$PLATFORM" = "xdebian" ]; then \
-         apt install -y  kmod; \
+      if [ x$PLATFORM = xdebian ]; then \
+         apt-get install -y  kmod; \
       fi ; \             
     fi && \ 
-    if [ "x$GRAPHICS" = "xnvidia" ]; then \
+    if [ x$GRAPHICS = xnvidia ]; then \
        apt install nvidia-driver-libs; \
     fi && \
     if [ x$GRAPHICS = xintelhd ]; then \

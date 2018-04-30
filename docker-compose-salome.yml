@@ -4,6 +4,7 @@ services:
     image: trophime/salome-8.4.0:novnc
     volumes:
       - /opt/DISTENE/DLim:/opt/DISTENE/DLim
+    # Linux only:  - /home/LNCMI-G/trophime/feel:/home/feelpp/feel/
     environment:
       - DISPLAY=novnc:0.0
     depends_on:
