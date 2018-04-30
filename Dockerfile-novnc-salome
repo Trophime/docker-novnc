@@ -6,6 +6,11 @@ FROM ${OS}:${DIST}
 ARG SALOME_PACKAGE=SALOME-8.4.0-LNCMI-MPI-DBtesting.tgz
 ARG SALOME_INSTALLDIR=SALOME-8.4.0-LNCMI-MPI-DBtesting
 
+ARG OS=debian  
+ARG DIST=buster
+
+ARG GPGKEY=535D3508
+
 # Setup demo environment variables
 ENV HOME=/root \
 	DEBIAN_FRONTEND=noninteractive \
@@ -16,51 +21,42 @@ ENV HOME=/root \
 	DISPLAY_WIDTH=1600 \
 	DISPLAY_HEIGHT=968
 
-# Add contrib and non-free section (should check if updates and backports exist)
-RUN if [ "$isDebian" = "0" ]; then \
-       if [ "$isTesting" != "0" ]; then \
+ARG DEBIAN_FRONTEND=noninteractive
+ARG SALOME_PACKAGE=SALOME-8.4.0-LNCMI-MPI-DBtesting.tgz
+ARG SALOME_INSTALLDIR=SALOME-8.4.0-LNCMI-MPI-DBtesting
+
+RUN if [ "$OS" = "debian" ]; then \
+       if [ "$DIST" != "buster" ]; then \
           echo "deb http://ftp.debian.org/debian $DIST-updates main" >> /etc/apt/sources.list; \
           echo "deb http://ftp.debian.org/debian $DIST-backports main" >> /etc/apt/sources.list; \
        fi ; \
        perl -p -i'.bak' -e "s| main| main contrib non-free|g" /etc/apt/sources.list;  \
     fi && \   
-    if [ $isDebian = "1" ]; then \
+    if [ $OS = "ubuntu" ]; then \
        perl -p -i'.bak' -e "s| universe| restricted universe multiverse|g" /etc/apt/sources.list; \
     fi
-
-# Add LNCMI Ubuntu repository and install MagnetTools prerequisites
-RUN apt-get -qq update && \
-    apt-get -y upgrade && \
-    apt-get -y --force-yes install gnupg curl && \
-    gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv $GPGKEY && \
-    gpg --export --armor $GPGKEY | apt-key add - && \
-    mkdir -p /etc/apt/sources.list.d/ && \
-    echo "deb http://euler/~trophime/debian/ ${DIST} main" > /etc/apt/sources.list.d/lncmi.list && \
-    cat  /etc/apt/sources.list.d/lncmi.list
-
+    
 # Install git, supervisor, VNC, & X11 packages
-RUN apt update && \
-    apt upgrade -y && \
-    apt install -y \
+RUN apt install -y \
         procps net-tools \
-	wget curl \
-	emacs-nox vim nano \
-	lsb-release \
-	bash \
-	fluxbox \
-	git \
-	socat \
-	supervisor \
-	x11vnc \
-	xterm \
-	xvfb \
-    mesa-utils mesa-utils-extra && \
+	      wget curl \
+	      emacs-nox vim nano \
+	      lsb-release \
+	      bash  bash-completion \
+	      fluxbox \
+	      git \
+	      socat \
+	      supervisor \
+	      x11vnc \
+	      xterm \
+	      xvfb \
+        mesa-utils mesa-utils-extra && \
     apt clean -y
     
 # Clone noVNC from github
 RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
-	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
 	&& rm -rf /root/noVNC/.git \
+	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
 	&& rm -rf /root/noVNC/utils/websockify/.git \
 	&& apt purge -y git
 
@@ -86,6 +82,14 @@ RUN apt-get -qq update && \
 #    for 8.x qt5, opencascade7.x (7.0 for 8.2, 7.1 for 8.3, 7.2 for 8.4)
 RUN apt-get -qq update && \
     apt-get -y upgrade && \
+    apt-get -y --force-yes install gnupg curl && \
+    gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv $GPGKEY && \
+    gpg --export --armor $GPGKEY | apt-key add - && \
+    mkdir -p /etc/apt/sources.list.d/ && \
+    echo "deb http://euler/~trophime/debian/ ${DIST} main" > /etc/apt/sources.list.d/lncmi.list && \
+    cat  /etc/apt/sources.list.d/lncmi.list
+    apt-get -qq update && \
+    apt-get -y upgrade && \
     apt-get install -y \
        libcos4-1 \
        omniidl omniidl-python omniorb-idl omniorb-nameserver python-omniorb python-omniorb-omg \
@@ -102,6 +106,7 @@ RUN apt-get -qq update && \
        openssh-client \
        python-psutil python-memory-profiler && \
     apt-get -y clean  
+
 # alternative use Salome Universal binaries
 COPY ${SALOME_PACKAGE} /tmp/${SALOME_PACKAGE}
 RUN mkdir -p /opt &&  \
