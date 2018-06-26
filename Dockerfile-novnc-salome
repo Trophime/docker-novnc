@@ -91,6 +91,8 @@ RUN apt-get -qq update && \
     apt-get -qq update && \
     apt-get -y upgrade && \
     apt-get install -y \
+       python-minimal libxss1 \
+       libxmu6 libglu1-mesa libxft2 \
        libcos4-1 \
        omniidl omniidl-python omniorb-idl omniorb-nameserver python-omniorb python-omniorb-omg \
        paraview-python \
@@ -113,9 +115,8 @@ RUN mkdir -p /opt &&  \
     cd /opt && \
     tar zxf /tmp/${SALOME_PACKAGE} && \
     rm -f /tmp/${SALOME_PACKAGE}
-#RUN cd /opt/${SALOME_INSTALLDIR}/ && ./sat launcher ${SALOME_CONFIGPY}
 
-# A better solution would be to mount /opt/DISTENE as /opt/DISTENE...?
+# Mount /opt/DISTENE as /opt/DISTENE
 ENV DISTENE_LICENSE_FILE /opt/DISTENE/DLim/dlim8.key
 ENV PATH /opt/${SALOME_INSTALLDIR}/:$PATH
 ENV LD_LIBRARY_PATH /usr/lib/paraview:$LD_LIBRARY_PATH
