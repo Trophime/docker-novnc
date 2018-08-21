@@ -1,0 +1,126 @@
+ARG OS=ubuntu
+ARG DIST=xenial
+
+FROM ${OS}:${DIST}
+MAINTAINER Christophe Trophime <christophe.trophime@lncmi.cnrs.fr>
+
+ARG OS=ubuntu
+ARG DIST=xenial
+
+ARG HTTP_USER=barbu
+ARG HTTP_PASSWD=171167
+ARG VERSION=8.4.0
+ARG SVERSION=V8_4_0
+
+ARG GPGKEY=535D3508
+
+# Setup demo environment variables
+ENV HOME=/root \
+	DEBIAN_FRONTEND=noninteractive \
+	LANG=en_US.UTF-8 \
+	LANGUAGE=en_US.UTF-8 \
+	LC_ALL=C.UTF-8 \
+	DISPLAY=:0.0 \
+	DISPLAY_WIDTH=1600 \
+	DISPLAY_HEIGHT=968
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN if [ "$OS" = "debian" ]; then \
+       if [ "$DIST" != "buster" ]; then \
+          echo "deb http://ftp.debian.org/debian $DIST-updates main" >> /etc/apt/sources.list; \
+          echo "deb http://ftp.debian.org/debian $DIST-backports main" >> /etc/apt/sources.list; \
+       fi ; \
+       perl -p -i'.bak' -e "s| main| main contrib non-free|g" /etc/apt/sources.list;  \
+    fi
+    
+# Install git, supervisor, VNC, & X11 packages
+RUN apt update && \
+    apt upgrade -y && \
+    apt install -y \
+        procps net-tools \
+	      wget curl \
+	      emacs-nox vim nano \
+	      lsb-release \
+	      bash  bash-completion \
+	      fluxbox \
+	      git \
+	      socat \
+	      supervisor \
+	      x11vnc \
+	      xterm \
+	      xvfb \
+        mesa-utils mesa-utils-extra && \
+    apt clean -y
+
+# Clone noVNC from github
+RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
+	&& rm -rf /root/noVNC/.git \
+	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
+	&& rm -rf /root/noVNC/utils/websockify/.git \
+	&& apt purge -y git
+
+# General requirements
+RUN apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get install -y \
+      python-minimal libxss1 \
+      bash-completion \
+      emacs vim nano \
+      lsb-release wget curl \
+      lshw \
+      firefox \
+      mesa-utils binutils kmod iputils-ping net-tools \
+      libxmu6 libglu1-mesa libxft2 && \
+    apt-get -y clean  
+
+# General requirements
+RUN apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get install -y \
+      python-minimal libxss1 \
+      bash-completion \
+      emacs vim nano \
+      lsb-release wget curl \
+      lshw \
+      firefox \
+      sudo gosu \
+      mesa-utils binutils module-init-tools iputils-ping net-tools \
+      libxmu6 libglu1-mesa libxft2 \
+      libpcre16-3 libfreeimageplus3 libfreeimage3 \
+      python-numpy python-matplotlib python-sip python-pyqt5 \
+      libboost-thread1.58.0  libboost-regex1.58.0 \
+      ttf-mscorefonts-installer \
+    && apt-get clean -y
+
+# get Cea bin
+RUN apt-get -y install libglu1-mesa mesa-utils mesa-utils-extra x11-apps libxv1 && \
+    apt-get clean -y && \
+    wget --http-user ${HTTP_USER} --http-password ${HTTP_PASSWD} \
+       -O /tmp/Salome.tgz \
+      "http://www.salome-platform.org/downloads/current-version/DownloadDistr?platform=OS1.UB16.04&version=$VERSION" && \
+    mkdir -p /opt/ && \
+    mkdir -p /opt/DISTENE/DLim/ && \
+    cd /opt && \
+    tar zxf /tmp/Salome.tgz && \
+    rm /tmp/Salome.tgz
+
+# Mount /opt/DISTENE as /opt/DISTENE
+ENV DISTENE_LICENSE_FILE /opt/DISTENE/DLim/dlim8.key
+ENV PATH /opt/SALOME-$VERSION-UB16.04-SRC/:$PATH
+
+# Install Hifimagnet PLUGIN with sat?
+
+# Install vglrun?
+RUN wget https://sourceforge.net/projects/virtualgl/files/2.5.2/virtualgl_2.5.2_amd64.deb/download -O /tmp/virtualgl_2.5.2_amd64.deb && \
+    dpkg -i /tmp/virtualgl_2.5.2_amd64.deb && \
+    rm /tmp/virtualgl_2.5.2_amd64.deb
+    
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Modify the launch script 'ps -p'
+RUN sed -i -- "s/ps -p/ps -o pid | grep/g" /root/noVNC/utils/launch.sh
+
+EXPOSE 8080
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
