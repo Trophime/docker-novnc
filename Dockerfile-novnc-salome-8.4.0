@@ -1,0 +1,136 @@
+ARG OS=ubuntu
+ARG DIST=xenial
+
+FROM ${OS}:${DIST}
+
+ARG SALOME_PACKAGE=SALOME-8.4.0-LNCMI-MPI-DBtesting.tgz
+ARG SALOME_INSTALLDIR=SALOME-8.4.0-LNCMI-MPI-DBtesting
+
+ARG OS=ubuntu
+ARG DIST=xenial
+
+ARG GPGKEY=535D3508
+
+# Setup demo environment variables
+ENV HOME=/root \
+	DEBIAN_FRONTEND=noninteractive \
+	LANG=en_US.UTF-8 \
+	LANGUAGE=en_US.UTF-8 \
+	LC_ALL=C.UTF-8 \
+	DISPLAY=:0.0 \
+	DISPLAY_WIDTH=1600 \
+	DISPLAY_HEIGHT=968
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG SALOME_PACKAGE=SALOME-8.4.0-LNCMI-MPI-DBtesting.tgz
+ARG SALOME_INSTALLDIR=SALOME-8.4.0-LNCMI-MPI-DBtesting
+
+RUN if [ "$OS" = "debian" ]; then \
+       if [ "$DIST" != "buster" ]; then \
+          echo "deb http://ftp.debian.org/debian $DIST-updates main" >> /etc/apt/sources.list; \
+          echo "deb http://ftp.debian.org/debian $DIST-backports main" >> /etc/apt/sources.list; \
+       fi ; \
+       perl -p -i'.bak' -e "s| main| main contrib non-free|g" /etc/apt/sources.list;  \
+    fi  
+    
+# Install git, supervisor, VNC, & X11 packages
+RUN apt install -y \
+        procps net-tools \
+	      wget curl \
+	      emacs-nox vim nano \
+	      lsb-release \
+	      bash  bash-completion \
+	      fluxbox \
+	      git \
+	      socat \
+	      supervisor \
+	      x11vnc \
+	      xterm \
+	      xvfb \
+        mesa-utils mesa-utils-extra && \
+    apt clean -y
+    
+# Clone noVNC from github
+RUN git clone https://github.com/kanaka/noVNC.git /root/noVNC \
+	&& rm -rf /root/noVNC/.git \
+	&& git clone https://github.com/kanaka/websockify /root/noVNC/utils/websockify \
+	&& rm -rf /root/noVNC/utils/websockify/.git \
+	&& apt purge -y git
+
+# General requirements
+RUN apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get install -y \
+      python-minimal libxss1 \
+      bash-completion \
+      emacs vim nano \
+      lsb-release wget curl \
+      lshw \
+      firefox \
+      mesa-utils binutils kmod iputils-ping net-tools \
+      libxmu6 libglu1-mesa libxft2 && \
+    apt-get -y clean  
+
+# Use Lncmi repository for Salome specific packages:
+# add specific build for mpi salome version:
+#    OCE, Paraview, gmsh-tetgen, scotch, mumps, petsc, slepc, med-fichier, netgen, hdf5-1.8
+#    !!! Depends on VERSION !!!
+#    for 7.8 qt4, oce
+#    for 8.x qt5, opencascade7.x (7.0 for 8.2, 7.1 for 8.3, 7.2 for 8.4)
+RUN apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get -y --force-yes install gnupg curl && \
+    gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv $GPGKEY && \
+    gpg --export --armor $GPGKEY | apt-key add - && \
+    mkdir -p /etc/apt/sources.list.d/ && \
+    echo "deb http://euler/~trophime/debian/ ${DIST} main" > /etc/apt/sources.list.d/lncmi.list && \
+    cat  /etc/apt/sources.list.d/lncmi.list && \
+    apt-get -qq update && \
+    apt-get -y upgrade && \
+    apt-get install -y \
+       python-minimal libxss1 \
+       libxmu6 libglu1-mesa libxft2 \
+       libcos4-1 \
+       omniidl omniidl-python omniorb-idl omniorb-nameserver python-omniorb python-omniorb-omg \
+       libqwt-qt5-6 \
+       libqt5xml5 libqt5test5 libqt5sensors5 libqt5positioning5 libqt5multimediawidgets5 libqt5webengine5 libqt5webenginewidgets5 \
+       libboost-filesystem1.62.0 libboost-regex1.62.0 libboost-signals1.62.0 libboost-thread1.62.0 libboost-date-time1.62.0 libboost-chrono1.62.0 libboost-atomic1.62.0 \
+       python-sip python-pyqt5 \
+       graphviz \
+       valgrind \
+       openssh-client \
+       python-psutil python-memory-profiler && \
+    apt-get -y clean  
+
+# install specific packages required
+RUN apt-get -y install \
+       libhdf5-1.8-mpi.dev libnetcdf-dev libcgns-dev libmed-dev libmedc-dev libmedimport-dev libmed-tools \
+       libgl2ps-dev libfreeimage-dev \
+       libqt5x11extras5 && \
+    apt-get -y clean  
+
+# alternative use Salome Universal binaries
+COPY ${SALOME_PACKAGE} /tmp/${SALOME_PACKAGE}
+RUN mkdir -p /opt &&  \
+    cd /opt && \
+    tar zxf /tmp/${SALOME_PACKAGE} && \
+    rm -f /tmp/${SALOME_PACKAGE}
+
+# Mount /opt/DISTENE as /opt/DISTENE
+ENV DISTENE_LICENSE_FILE /opt/DISTENE/DLim/dlim8.key
+ENV PATH /opt/${SALOME_INSTALLDIR}/:$PATH
+ENV LD_LIBRARY_PATH /usr/lib/paraview:$LD_LIBRARY_PATH
+
+# Install vglrun?
+RUN wget https://sourceforge.net/projects/virtualgl/files/2.5.2/virtualgl_2.5.2_amd64.deb/download -O /tmp/virtualgl_2.5.2_amd64.deb && \
+    dpkg -i /tmp/virtualgl_2.5.2_amd64.deb && \
+    rm /tmp/virtualgl_2.5.2_amd64.deb
+    
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Modify the launch script 'ps -p'
+RUN sed -i -- "s/ps -p/ps -o pid | grep/g" /root/noVNC/utils/launch.sh
+
+EXPOSE 8080
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
